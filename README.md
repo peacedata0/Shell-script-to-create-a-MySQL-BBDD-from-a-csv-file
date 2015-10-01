@@ -11,7 +11,7 @@ Use:
 Two script needs as first argument the name of the file ( without the extension) and only the second script needs as second 
 argument the length of the fields.
 
-example:</br>
+Examples:</br>
 ./scriptFullScan nameOfCsvFile
 </br>
 ./scriptQuickly nameOfCsvFile 255
