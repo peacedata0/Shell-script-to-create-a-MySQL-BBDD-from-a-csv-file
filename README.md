@@ -1,7 +1,7 @@
 # Shell-script-to-create-a-MySQL-BBDD-from-a-csv-file
 These are two script to automate the load into a Mysql BBDD tables from a csv file
 
-There are two differents versions of these shell scripts:
+There are two differents versions of these shell scripts:</br>
 1-scriptFullScan </br>
 2-scriptQuickly
 
