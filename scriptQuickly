@@ -1,44 +1,38 @@
 #!/bin/bash
 
+#Permisos, permissions:
+#chmod 700 scripFullScan (Permisons only for  read,write and execution  to root user )
+#chmod 700 scripFullscan (Solo tiene permisos de lectura, escritura y ejecucion para el usuario root)
+
 
 #Address to mysql motor
 #Direccion hacia el motor SQL
-rutaMySQL=/usr/bin/mysql
+rutaMySQL=/usr/local/mysql/bin/mysql
 
+#Address to csv file
+#Direccion hacia el archivo csv
+rutaCSV=/Library/WebServer/Documents/script
 
 #Name of the file to export to the MySQL database
 #Nombre del fichero a exportar a la bbdd en MySQL
-nombreFichero=$1
-
-
-#PATH to csv file
-#Ruta al archivo csv
-#*** fill put,rellenar
-rutaCSV=
-
+nombreFichero="$1"
 
 #Save the data to have a log control 
 #Para tener un log con fecha de cualquiera error
-date >>"$rutaCSV"/Logs/MySQLlogExportacion.txt
+date >>"$rutaCSV"/MySQLlogExportacion.txt
 
 
-#To configure the enviriment and local variables shell/console of the process launched for the cron job with UTF-8 format
-#Para configurar las variables de ambiente y locales de la shell/consola del proceso lanzado por la tarea cron con el formato UTF-8
-export LC_CTYPE=UTF-8
-
-
-#echo Start....
-
+echo Start....
 
 #Variable a usar
 #Variable to use:
 if [ -z "$2" ]
   then
     valorColumnas=256
-    #echo "You dont put argument so I put the value:" $valorColumnas
+    echo "You dont put argument so I put the value:" $valorColumnas
 else
 	valorColumnas=$2
-	#echo "Value for Varchars: " $valorColumnas
+	echo "Value for Varchars: " $valorColumnas
 fi
 
 
@@ -52,9 +46,14 @@ iconv -f ISO_8859-1 -t UTF-8 "$rutaCSV"/"$nombreFichero".csv > "$rutaCSV"/"$nomb
 sed 's/\"//g' "$rutaCSV"/"$nombreFichero"UTF8.csv  > "$rutaCSV"/"$nombreFichero"UTF8SinComillas.csv 
 
 
+#Now transform again to UTF8 and in this way mysql server  can import correctly
+#Ahora transformamos de nuevo el formato de latin a UTF8 y de esta manera el servidor MySQL puede importar correctamente
+iconv -f UTF-8 -t ISO_8859-1 "$rutaCSV"/"$nombreFichero"UTF8SinComillas.csv > "$rutaCSV"/"$nombreFichero"LatinSinComillas.csv 
+
+
 #Columns or titles of csv file:
 #Columnas o titulos del archivo csv :
-awk 'BEGIN {FS=";";RS="\n"} {if (NR==1) for (i=1;i<=NF;i++) print $i}' "$rutaCSV"/"$nombreFichero".csv | 
+awk 'BEGIN {FS=";";RS="\n"} {if (NR==1) for (i=1;i<=NF;i++) print $i}' "$rutaCSV"/"$nombreFichero"UTF8.csv | 
    awk 'BEGIN {FS="\n"; RS=""}  {print $0} '> "$rutaCSV"/resumenColumnas
 
 
@@ -63,14 +62,15 @@ awk 'BEGIN {FS=";";RS="\n"} {if (NR==1) for (i=1;i<=NF;i++) print $i}' "$rutaCSV
  contador=$(awk 'BEGIN {FS="\n"; RS=""}  {print NF} ' "$rutaCSV"/resumenColumnas)
 
 
+
+
 #Modification of global variable into mysql server in order to turn on  the import option
 #Modificacion de la variable global de mysql server para poder activar la opcion de importacion
 echo "SET GLOBAL local_infile=ON;" >"$rutaCSV"/tempsqlfile;
 
-
 #Creation mysql shell script: 
 #Crear el scrip de la base de datos sql
-echo USE table_BBDD';
+echo USE baseDeDatos';
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+01:00";
 DROP TABLE IF EXISTS '"$nombreFichero"';
@@ -81,7 +81,6 @@ DROP TABLE IF EXISTS '"$nombreFichero"';
 #Bucle para poner en cada variable su maximo valor:
  for ((i=1;i<=$contador;i++)) do echo $(awk 'BEGIN {FS="\r"; RS=""}  {print "`"$'$i'"`"}' "$rutaCSV"/resumenColumnas) varchar"($valorColumnas)" DEFAULT NULL,; 
   done >>"$rutaCSV"/tempsqlfile;
-
 
 #Sed command to del the last comma
 #Comando Sed para borrar la ultima coma del bucle de creacion de los campos varchar 
@@ -95,7 +94,7 @@ echo ") ENGINE=InnoDB DEFAULT CHARSET=utf8;">>"$rutaCSV"/fileOut.sql
 
 #Load the csv file into the BBDD
 #Carga del archivo csv dentro de la base de datos 
-echo "load data local infile '"$rutaCSV"/"$nombreFichero"UTF8SinComillas.csv' 
+echo "load data local infile '"$rutaCSV"/"$nombreFichero"LatinSinComillas.csv' 
  into table $nombreFichero fields terminated by ';' 
  lines terminated by '\\n';" >>"$rutaCSV"/fileOut.sql
 
@@ -108,14 +107,12 @@ echo "DELETE FROM $nombreFichero LIMIT 1;" >>"$rutaCSV"/fileOut.sql
 #Para borrar el ultimo salto de linea
 #To delete the last end of line
 ultimaColumna=$(awk 'END{print}' "$rutaCSV"/resumenColumnas)
-#ultimaColumna=$(sed 's/.$//' ultimaColumnatxt);
 echo "UPDATE $nombreFichero SET $ultimaColumna = REPLACE($ultimaColumna, '\\r', '');" >>"$rutaCSV"/fileOut.sql
 
 
 #Para borrar los espacios al inicio y al final de el campo Email
 #To delete the white spaces in the start and end in email 
-#echo "UPDATE LIS_Pacientes_Mailing_Newsletter SET Email = TRIM(Email);">>"$rutaCSV"/fileOut.sql
-
+#echo "UPDATE "$nombreFichero" SET Email = TRIM(Email);">>"$rutaCSV"/fileOut.sql
 
 
 #Modification of global variable into mysql server in order to turn off the import option (for security)
@@ -123,28 +120,25 @@ echo "UPDATE $nombreFichero SET $ultimaColumna = REPLACE($ultimaColumna, '\\r', 
 echo "SET GLOBAL local_infile=OFF;" >>"$rutaCSV"/fileOut.sql;
 
 
-
-#Creation on file error to check any problem with the process of mysql import and load data
-#Creacion de un archivo llamado error para comprobar cualquier error en el proceso de carga e importacion del motor sql
-#Put the user fater -u and the password after --password
-#Colocar el usuario despues de -u y la password despues de --password
-#*** fill put,rellenar
-"$rutaMySQL" -u  --password= 2>>"$rutaCSV"/Logs/MySQLlogExportacion < "$rutaCSV"/fileOut.sql
+#create the ddbb
+#creacion de la bbdd
+"$rutaMySQL" -u root --password=root -e "create database baseDeDatos" 2>/dev/null; 
 
 
-##Delete all temporaly files required by shell programs
-##Borrar los archivos temporales requiridos por los diferentes programas shell
+#Log in into mysql server 
+#Inicio de sesion dentro del motor de mysq
+"$rutaMySQL" -u root --password=root 2>/dev/null < "$rutaCSV"/fileOut.sql
+
+
+#Delete all temporaly files required by shell programs
+#Borrar los archivos temporales requiridos por los diferentes programas shell
 rm "$rutaCSV"/tempsqlfile 
 rm "$rutaCSV"/resumenColumnas 
-rm "$rutaCSV"/"$nombreFichero".csv 
+rm "$rutaCSV"/"$nombreFichero"UTF8.csv
 rm "$rutaCSV"/fileOut.sql
+rm "$rutaCSV"/"$nombreFichero"LatinSinComillas.csv
 rm "$rutaCSV"/"$nombreFichero"UTF8SinComillas.csv
 
-
-
-#To left the enviroment variables like before the launch of this script
-#Para dejar la variable de ambiante y local justo como estaba antes del lanzamiento del script
-export LC_CTYPE="en_US.UTF-8"
 
 #Delete the local variables used
 #Borrado de las variables locales usadas
@@ -153,6 +147,8 @@ unset contador
 unset ultimaColumna
 unset rutaMySQL
 unset rutaCSV
+
+echo Done
 
 
 exit 
