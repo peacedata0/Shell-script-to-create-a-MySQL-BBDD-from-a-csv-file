@@ -17,3 +17,5 @@ Examples:</br>
 ./scriptQuickly nameOfCsvFile 255
 
 Finally in both scripts you will have to add into then, the path of the csv file and your BBDD username and password 
+
+You can do in your terminal an which mysql to know waht will be the path that you have to fill into the script
