@@ -18,4 +18,6 @@ Examples:</br>
 
 Finally in both scripts you will have to add into then, the path of the csv file and your BBDD username and password 
 
-You can do in your terminal an which mysql to know waht will be the path that you have to fill into the script
+You can do in your terminal a #which mysql to know waht will be the path that you have to fill into the script
+
+Be carefull inside the script maybe you will need ot change the end of file \r by \n
