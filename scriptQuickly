@@ -3,7 +3,7 @@
 #Permisos, permissions:
 #chmod 700 scripFullScan (Permisons only for  read,write and execution  to root user )
 #chmod 700 scripFullscan (Solo tiene permisos de lectura, escritura y ejecucion para el usuario root)
-
+#pendiente con el espacio despues cipc/detalle y Abast...   y con eliminar toda la primera fila
 
 #Address to mysql motor
 #Direccion hacia el motor SQL
@@ -53,13 +53,13 @@ iconv -f UTF-8 -t ISO_8859-1 "$rutaCSV"/"$nombreFichero"UTF8SinComillas.csv > "$
 
 #Columns or titles of csv file:
 #Columnas o titulos del archivo csv :
-awk 'BEGIN {FS=";";RS="\n"} {if (NR==1) for (i=1;i<=NF;i++) print $i}' "$rutaCSV"/"$nombreFichero"UTF8.csv | 
-   awk 'BEGIN {FS="\n"; RS=""}  {print $0} '> "$rutaCSV"/resumenColumnas
+awk 'BEGIN {FS=";";RS="\r"} {if (NR==1) for (i=1;i<=NF;i++) print $i}' "$rutaCSV"/"$nombreFichero"UTF8.csv | 
+   awk 'BEGIN {FS="\r"; RS=""}  {print $0} '> "$rutaCSV"/resumenColumnas
 
 
 #To count and know the numbers of columns/titles of csv di and put in the contador variable
 #Para contar y saber el numero de campos/titulos del archivo csv y lo pongo en la variable contador
- contador=$(awk 'BEGIN {FS="\n"; RS=""}  {print NF} ' "$rutaCSV"/resumenColumnas)
+ contador=$(awk 'BEGIN {FS="\r"; RS=""}  {print NF} ' "$rutaCSV"/resumenColumnas)
 
 
 
@@ -96,7 +96,7 @@ echo ") ENGINE=InnoDB DEFAULT CHARSET=utf8;">>"$rutaCSV"/fileOut.sql
 #Carga del archivo csv dentro de la base de datos 
 echo "load data local infile '"$rutaCSV"/"$nombreFichero"LatinSinComillas.csv' 
  into table $nombreFichero fields terminated by ';' 
- lines terminated by '\\n';" >>"$rutaCSV"/fileOut.sql
+ lines terminated by '\\r';" >>"$rutaCSV"/fileOut.sql
 
 
 #Delete the first row which is the name of the variables ( title) into the csv file
@@ -120,15 +120,17 @@ echo "UPDATE $nombreFichero SET $ultimaColumna = REPLACE($ultimaColumna, '\\r', 
 echo "SET GLOBAL local_infile=OFF;" >>"$rutaCSV"/fileOut.sql;
 
 
-#create the ddbb
-#creacion de la bbdd
-"$rutaMySQL" -u root --password=root -e "create database baseDeDatos" 2>/dev/null; 
-
+#create the ddbb inside mysql motor
+#creacion de la bbdd dentro del motor mysql
+"$rutaMySQL" -u root --password=root -e "create database baseDeDatos" 2>/MySQLlogExportacion.txt; 
+#outside mysql motor
+#"$rutaMySQL" -u root -h 127.0.0.1 --password=root -e "create database baseDeDatos" 2>/MySQLlogExportacion.txt; 
 
 #Log in into mysql server 
 #Inicio de sesion dentro del motor de mysq
-"$rutaMySQL" -u root --password=root 2>/dev/null < "$rutaCSV"/fileOut.sql
-
+"$rutaMySQL" -u root  --password=root 2>/MySQLlogExportacion.txt < "$rutaCSV"/fileOut.sql
+#outside  mysql motor:
+#"$rutaMySQL" -u root -h 127.0.0.1 --password=root 2>/MySQLlogExportacion.txt < "$rutaCSV"/fileOut.sql
 
 #Delete all temporaly files required by shell programs
 #Borrar los archivos temporales requiridos por los diferentes programas shell
